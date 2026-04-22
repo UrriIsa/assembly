@@ -15,6 +15,7 @@
     cmdRev : .asciiz "rev"
     cmdCat : .asciiz "cat"
     cmdRepr : .asciiz "repr"
+    cmdExit : .asciiz "exit"
     
     # mensaje al usuario
     errorCmd : .asciiz "Comando no reconocido.Puede checar help para más información\n"
@@ -62,6 +63,11 @@ buclePrincipal:
     jal FStrComp2
     beq $v0, 0, EjctCat
     
+    #verifico exit
+    la $a0, buffer
+    la $a1, cmdExit
+    jal FStrComp0
+    beq $v0, 0, EjctExit
     
      # Si ya entró en uno o si no es ninguno : iteramos
     li $v0, 4
@@ -101,6 +107,19 @@ EjctCat :
    beq $v0, 1, FErrorArch
 
    j buclePrincipal
+   
+#Ejecutar EXIT    
+EjctExit : 
+    la $a0, salidaVerif
+    li $v0, 50      # 50 para el dialogo de confirmación, 0 es Si
+    syscall
+    beq $a0, $zero, exitFin
+    j buclePrincipal
+    
+exitFin:
+    li $v0, 10     # 10 de salida
+    syscall
+
 
     
     
