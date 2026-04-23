@@ -266,28 +266,28 @@ EjctRepr:
     jal FStrToInt             # convierte string -> entero, resultado en $v0
     move $s0, $v0             # guardamos el número
 
-    # --- Hexadecimal ---
+    # Hexadecimal
     li $v0, 4
     la $a0, msjHex
     syscall
     move $a0, $s0
-    li $v0, 34               # syscall 34 = imprimir en hex (MARS)
+    li $v0, 34      # syscall 34 para imprimir en hex
     syscall
 
-    # --- Binario ---
+    # Binario
     li $v0, 4
     la $a0, msjBin
     syscall
     move $a0, $s0
-    li $v0, 35               # syscall 35 = imprimir en binario (MARS)
+    li $v0, 35      # syscall 35 para  imprimir en binario
     syscall
 
-    # --- Unsigned ---
+    # Unsigned
     li $v0, 4
     la $a0, msjUns
     syscall
     move $a0, $s0
-    li $v0, 36               # syscall 36 = imprimir unsigned (MARS)
+    li $v0, 36      # syscall 36 para imprimir unsigned
     syscall
 
     li $v0, 4
