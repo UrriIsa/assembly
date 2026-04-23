@@ -26,6 +26,10 @@
     
     rcmdCmd1 : .asciiz "Uso : [comando] [file1.extension]\nPuede checar help para más información\n"     #recomendación para los argumentos de comando de un archivo
     rcmdCmd2: .asciiz "Uso : [comando] [file1.extension] [file2.extension]\nPuede checar help para más información\n"   #recomendación para los argumentos de comando de un archivo
+    
+    msjHex : .asciiz " Hexadecimal : "
+    msjBin : .asciiz "\n Binario : "
+    msjUns : .asciiz "\n Unsigned : "
    
     
     # para song
@@ -69,23 +73,29 @@ buclePrincipal:
     jal FStrComp0      # linkeo el jum para la llamada auxiliar para comparar
     beq $v0, 0, EjctSong
     
+    #verifico rev
+    la $a0, buffer
+    la $a1, cmdRev
+    jal FStrComp2
+    beq $v0, 0, EjctRev
+    
     #verifico cat
     la $a0, buffer
     la $a1, cmdCat
     jal FStrComp2
     beq $v0, 0, EjctCat
     
+    #verifico repr
+    la $a0, buffer
+    la $a1, cmdRepr
+    jal FStrComp2
+    beq $v0, 0, EjctRepr
+    
     #verifico exit
     la $a0, buffer
     la $a1, cmdExit
     jal FStrComp0
     beq $v0, 0, EjctExit
-    
-    #verifico Rev
-    la $a0, buffer
-    la $a1, cmdRev
-    jal FStrComp2
-    beq $v0, 0, EjctRev
     
     
      # Si ya entró en uno o si no es ninguno : iteramos
@@ -127,13 +137,13 @@ ChkSnare12:
 DespSnare:
 
     andi $t0, $s0, 1
-    bne  $t0, $zero, DespHat
-    jal  HatRI
+    bne $t0, $zero, DespHat
+    jal HatRI
 DespHat:
 
     andi $t0, $s0, 1
-    bne  $t0, $zero, DespMel
-    jal  BajoMelodia
+    bne $t0, $zero, DespMel
+    jal BajoMelodia
 DespMel:
 
     li $v0, 32
@@ -143,10 +153,10 @@ DespMel:
     addi $s0, $s0, 1
     addi $s1, $s1, 1
 
-    li   $t1, 16
-    blt  $s0, $t1, BucleBeat
-    li   $s0, 0
-    j    BucleBeat
+    li $t1, 16
+    blt $s0, $t1, BucleBeat
+    li $s0, 0
+    j BucleBeat
 
 FinCancion:
     j buclePrincipal
@@ -169,23 +179,23 @@ EjctRev:
 
     # leer contenido del archivo
     move $a0, $s1
-    la   $a1, bufferArch
-    li   $a2, 4095
-    li   $v0, 14     # 14 para leer del archivo
+    la $a1, bufferArch
+    li $a2, 4095
+    li $v0, 14     # 14 para leer del archivo
     syscall
     move $t0, $v0     # contenido en t0
 
     # cerrar archivo
     move $a0, $s1
-    li   $v0, 16
+    li $v0, 16
     syscall
 
     blez $t0, buclePrincipal     # archivo vacío
 
     # poner \0 al final de lo leído
-    la  $t1, bufferArch
+    la $t1, bufferArch
     add $t1, $t1, $t0     # al bufferArch le sumo lo del contenido
-    sb  $zero, 0($t1)    # le pongo el \0
+    sb $zero, 0($t1)    # le pongo el \0
 
     la $a0, bufferArch
     jal FReversa
@@ -244,6 +254,47 @@ EjctCat:
 
    j buclePrincipal
 
+
+# Ejecutar REPR
+EjctRepr:
+    la $a0, buffer
+    la $a1, arch1
+    jal FExtraeArgs1     # reutilizamos la función, así extrae el número como string en arch1
+    beq $v0, 1, FfltArgs1    # si no hay argumento, error
+
+    la $a0, arch1
+    jal FStrToInt             # convierte string -> entero, resultado en $v0
+    move $s0, $v0             # guardamos el número
+
+    # --- Hexadecimal ---
+    li $v0, 4
+    la $a0, msjHex
+    syscall
+    move $a0, $s0
+    li $v0, 34               # syscall 34 = imprimir en hex (MARS)
+    syscall
+
+    # --- Binario ---
+    li $v0, 4
+    la $a0, msjBin
+    syscall
+    move $a0, $s0
+    li $v0, 35               # syscall 35 = imprimir en binario (MARS)
+    syscall
+
+    # --- Unsigned ---
+    li $v0, 4
+    la $a0, msjUns
+    syscall
+    move $a0, $s0
+    li $v0, 36               # syscall 36 = imprimir unsigned (MARS)
+    syscall
+
+    li $v0, 4
+    la $a0, saltoLinea
+    syscall
+
+    j buclePrincipal
     
     
 #Ejecutar EXIT    
@@ -318,8 +369,8 @@ bucleSC2 :
 finCmd2 :
     # el comando terminó; el buffer debe tener ' ' o '\0' aquí
     beqz $t0, igual2
-    li   $t4, 32    # ASCII espacio
-    beq  $t0, $t4, igual2
+    li $t4, 32    # ASCII espacio
+    beq $t0, $t4, igual2
 difer2 : 
     li $v0, 1    # guardo en v0 el 1, porque fueron diferentes
     jr $ra     # regreso a donde me llamaron
@@ -328,43 +379,42 @@ igual2 :
     jr $ra     # regreso a donde me llamaron
     
 # Para guardar los argumentos del archivo. a0 buffer, a1 destino arch1. UN ARCHIVO
-
 FExtraeArgs1:
     move $t0, $a0
     move $t1, $a1
 
 FEA1SaltaCmd:
-    lb   $t3, 0($t0)
-    beqz $t3, FEA1Error
-    li   $t4, 32
-    beq  $t3, $t4, FEA1SaltaEsp
-    addi $t0, $t0, 1
-    j    FEA1SaltaCmd
+    lb $t3, 0($t0)     # carga el caracter de la cadena
+    beqz $t3, FEA1Error     # como saltaremos el comando no puede ser zero
+    li $t4, 32     # cargamos ascii del espacio
+    beq $t3, $t4, FEA1SaltaEsp     # si el caracter en el que vamos ya es el espacio vamos a FEA1SaltaEsp
+    addi $t0, $t0, 1    # sumamos para seguir con los caracteres
+    j FEA1SaltaCmd
 
 FEA1SaltaEsp:
-    lb   $t3, 0($t0)
-    li   $t4, 32
-    bne  $t3, $t4, FEA1CopiaArg
-    addi $t0, $t0, 1
-    j    FEA1SaltaEsp
+    lb $t3, 0($t0)     # cargamos el caracter
+    li $t4, 32
+    bne $t3, $t4, FEA1CopiaArg    # si ya no es un espacio
+    addi $t0, $t0, 1    # si no, seguimos buscando
+    j FEA1SaltaEsp
 
 FEA1CopiaArg:
-    lb   $t3, 0($t0)
-    beqz $t3, FEA1Fin
-    sb   $t3, 0($t1)
+    lb $t3, 0($t0)    # cargamos caracter
+    beqz $t3, FEA1Fin     # si llegamos al fin de la cadena
+    sb $t3, 0($t1)     # copiamos el caracter en t1
     addi $t0, $t0, 1
     addi $t1, $t1, 1
-    j    FEA1CopiaArg
+    j FEA1CopiaArg
 
 FEA1Fin:
-    sb   $zero, 0($t1)
-    lb   $t3, 0($a1)
-    beqz $t3, FEA1Error
-    li   $v0, 0
-    jr   $ra
+    sb $zero, 0($t1)    # cerramos la cadena en donde se quedó
+    lb $t3, 0($a1)    # vemos el byte de arch1
+    beqz $t3, FEA1Error    # si está vacío es que no se puede
+    li $v0, 0    # en v0 es 0 si no hubo error
+    jr $ra
 
 FEA1Error:
-    li $v0, 1
+    li $v0, 1    # n v0 es 1 si hubo error
     jr $ra
 
 
@@ -405,38 +455,38 @@ FEACopiaArg1 :
 FEAFinArg1 : 
      sb   $zero, 0($t1)       # terminar arg1 con '\0'
     # verificar que arg1 no esté vacío
-    lb   $t3, 0($a1)
+    lb $t3, 0($a1)
     beqz $t3, FEAError
 
 FEASaltaEsp2 : 
-    lb   $t3, 0($t0)
+    lb $t3, 0($t0)
     beqz $t3, FEAError      # se acabó el buffer, no hay arg2
-    li   $t4, 32
-    bne  $t3, $t4, FEACopiaArg2
+    li $t4, 32
+    bne $t3, $t4, FEACopiaArg2
     addi $t0, $t0, 1
-    j    FEASaltaEsp2
+    j FEASaltaEsp2
     
 FEACopiaArg2 : 
-    lb   $t3, 0($t0)
+    lb $t3, 0($t0)
     beqz $t3, FEAFinArg2
-    sb   $t3, 0($t2)
+    sb $t3, 0($t2)
     addi $t0, $t0, 1
     addi $t2, $t2, 1
-    j    FEACopiaArg2
+    j FEACopiaArg2
     
 FEAFinArg2: 
     sb   $zero, 0($t2)   # terminar arg2 con '\0'
 
     # verificar que arg2 no esté vacío
-    lb   $t3, 0($a2)
+    lb $t3, 0($a2)
     beqz $t3, FEAError
 
-    li   $v0, 0   # éxito
-    jr   $ra
+    li $v0, 0   # éxito
+    jr $ra
 
 FEAError :
-    li   $v0, 1    # faltan argumentos
-    jr   $ra
+    li $v0, 1    # faltan argumentos
+    jr $ra
 
 
 # Para sacarle la reversa
@@ -446,33 +496,33 @@ FReversa:
     move $t1, $a0     # buscar fin
 
 FRVBuscaFin:    # recorremos la cadena hasta encontrar el fin \0
-    lb   $t2, 0($t1)
+    lb $t2, 0($t1)
     beqz $t2, FRVInvierte    #como ya encontramos el final, podemos invertir
     addi $t1, $t1, 1
-    j    FRVBuscaFin
+    j FRVBuscaFin
 
 FRVInvierte:
     addi $t1, $t1, -1   # apunta al último caracter, antes del \0
 
 FRVBucle:
     bge  $t0, $t1, FRVImprimir    # >= porque el \0 caracter nulo en ascii es 0, puntero izquierdo cruzó derecho
-    lb   $t2, 0($t0)    # puntero izquierdo guarda en t2
-    lb   $t3, 0($t1)    # puntero derecho guarda en t3
-    sb   $t3, 0($t0)    # puntero derecho en posición izquierda
-    sb   $t2, 0($t1)    # puntero izquierda en posición derecho
+    lb $t2, 0($t0)    # puntero izquierdo guarda en t2
+    lb $t3, 0($t1)    # puntero derecho guarda en t3
+    sb $t3, 0($t0)    # puntero derecho en posición izquierda
+    sb $t2, 0($t1)    # puntero izquierda en posición derecho
     addi $t0, $t0, 1    # avanza el de la izquierda
     addi $t1, $t1, -1    # "retrocede" el de la derecha
-    j    FRVBucle
+    j FRVBucle
 # la idea de izquierda y derecha es por ejemplo : [pi->]hola[<-pd]
 # así en la primera iteración cambio las letras y avanzo : a[pi->]ol[<-pd]h    (cambié la 'a' y la 'h' y moví mis apuntadores)
 
 FRVImprimir:
-    li   $v0, 4    # 4 para imp string
+    li $v0, 4    # 4 para imp string
     move $a0, $s4
     syscall
-    la   $a0, saltoLinea
+    la $a0, saltoLinea
     syscall
-    jr   $ra
+    jr $ra
 
 
 
@@ -483,26 +533,67 @@ FLeerYMostrar:
 
 FIALeer:
     move $a0, $s0        # fd
-    la   $a1, bufferArch # buffer de lectura
-    li   $a2, 4095       # máximo a leer
-    li   $v0, 14
+    la $a1, bufferArch # buffer de lectura
+    li $a2, 4095       # máximo a leer
+    li $v0, 14
     syscall
     move $t0, $v0        # bytes leídos
 
     blez $t0, FIAFin     # 0 o negativo -> fin o error
 
     # Poner '\0' al final para imprimir
-    la   $t1, bufferArch
+    la $t1, bufferArch
     add  $t1, $t1, $t0
-    sb   $zero, 0($t1)
+    sb $zero, 0($t1)
 
-    li   $v0, 4
-    la   $a0, bufferArch
+    li $v0, 4
+    la $a0, bufferArch
     syscall
 
     j FIALeer            # Seguir leyendo
 
 FIAFin:
+    jr $ra
+    
+# SUBRUTINA para cambiar de cadena a número
+# Convierte string de dígitos a entero. Recibe dirección en $a0, retorna int en $v0
+FStrToInt:
+    move $t0, $a0    # puntero a la cadena del argumento
+    li $t1, 0      # acumulador / contador
+    li $t2, 0    # signo  0=positivo 1=negativo 
+
+    lb $t3, 0($t0)    # cargamos caracter de la cadena
+    li $t4, 45    # ascii de '-'
+    bne $t3, $t4, FSTIBucle    # si no es - empezamos a cargar los números
+    li $t2, 1             # es negativo
+    addi $t0, $t0, 1    # saltamos ese caracter para empezar el bucle
+
+FSTIBucle:
+    lb   $t3, 0($t0)    # caracter de la cadena (numero)
+    beqz $t3, FSTIFin    # fin de cadena
+
+    li $t4, 48    # ascii del número 0
+    sub $t3, $t3, $t4     # dígito real, en t3 guardo la resta del caracter que me dieron menos el 0 caracter
+    bltz $t3, FSTIFin     # si es menor que zero no es caracter numérico
+    li $t4, 9     # como el 0 es 48 en ascii, el 9 es 57 en ascii, si la resta es mayor que 9 tampoco es número
+    bgt $t3, $t4, FSTIFin  # mayor que '9', salir
+
+    li $t4, 10    # cargo el número 10
+    mul $t1, $t1, $t4      # acumulador *= 10
+    add $t1, $t1, $t3    # acumulador += dígito
+    addi $t0, $t0, 1
+    j FSTIBucle
+    
+    # la idea es que a un numero 453, leo 4, t1 inicia en cero, entonces t1 * 10 = 0, sumo a t1 el 4, entonces t1 = 4
+    # ahora leo 5, t1 = 4, entonces 4 * 10 = 40, más el que leí 5, entonces t1 = 45
+    # finalmente leo 3, t1 = 45, entonces 45 * 10 = 450 más el que leí 3, entonces t1 = 3
+
+FSTIFin:
+    beqz $t2, FSTIPositivo    # como ponermos que el 1 es negativo y 0 positivo lo checa
+    neg $t1, $t1     # si era negativo, negar
+    
+FSTIPositivo:
+    move $v0, $t1
     jr $ra
 
 
@@ -529,9 +620,6 @@ igual :
     li $v0, 0    # guardo en v0 el 0, porque fueron iguales
     jr $ra     # regreso a donde me llamaron
     
-       
-          
-
 FErrorCat2:
    # Si el segundo archivo falló, cerramos el primero que sí se abrió
    move $a0, $s1
@@ -576,19 +664,19 @@ HatRI:
     jr $ra
 
 BajoMelodia:
-    la   $t0, cancioncita
-    add  $t0, $t0, $s3
-    lb   $a0, 0($t0)
-    li   $v0, 31
-    li   $a1, 200
-    lw   $a2, bajo
-    li   $a3, 95
+    la $t0, cancioncita
+    add $t0, $t0, $s3
+    lb $a0, 0($t0)
+    li $v0, 31
+    li $a1, 200
+    lw $a2, bajo
+    li $a3, 95
     syscall
 
     addi $s3, $s3, 1
-    li   $t1, 16
-    blt  $s3, $t1, FinBajoMel
-    li   $s3, 0
+    li $t1, 16
+    blt $s3, $t1, FinBajoMel
+    li $s3, 0
     
 FinBajoMel:
-    jr   $ra
+    jr $ra
